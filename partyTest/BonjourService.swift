@@ -21,6 +21,7 @@ class BonjourService : NSObject {
     var delegate : BonjourServiceManagerDelegate?
     
     var deviceList = [String]()
+   
     
     override init() {
         self.serviceAdvertiser = MCNearbyServiceAdvertiser(peer: myPeerID, discoveryInfo: nil, serviceType: serviceType)
@@ -35,7 +36,7 @@ class BonjourService : NSObject {
         self.serviceBrowser.startBrowsingForPeers()
     }
     
-    deinit {
+    deinit {    
         self.serviceAdvertiser.stopAdvertisingPeer()
         self.serviceBrowser.stopBrowsingForPeers()
     }
@@ -60,19 +61,19 @@ class BonjourService : NSObject {
     }
 }
 
-extension BonjourService : MCNearbyServiceAdvertiserDelegate {
+extension BonjourService : MCNearbyServiceAdvertiserDelegate {      //advertiser delegate
     func advertiser(_ advertiser: MCNearbyServiceAdvertiser, didNotStartAdvertisingPeer error: Error) {
         NSLog("%@", "didNotStartAdvertisingPeer: \(error)")
     }
     
     func advertiser(_ advertiser: MCNearbyServiceAdvertiser, didReceiveInvitationFromPeer peerID: MCPeerID, withContext context: Data?, invitationHandler: @escaping (Bool, MCSession?) -> Void) {
         NSLog("%@", "didReceiveInvitationFromPeer \(peerID)")
-        //TODO: update peer list UI here and invitation handle in didSelect item
+        //TODO: update peer list UI here and handle invitation in didSelect item
         invitationHandler(true, self.session)
     }
 }
 
-extension BonjourService : MCNearbyServiceBrowserDelegate {
+extension BonjourService : MCNearbyServiceBrowserDelegate {     //browser delegate
     
     func browser(_ browser: MCNearbyServiceBrowser, didNotStartBrowsingForPeers error: Error) {
         NSLog("%@", "didNotStartBrowsingForPeers: \(error)")
@@ -82,7 +83,12 @@ extension BonjourService : MCNearbyServiceBrowserDelegate {
         NSLog("%@", "foundPeer: \(peerID)")
         NSLog("%@", "invitePeer: \(peerID)")
         
-        browser.invitePeer(peerID, to: self.session, withContext: nil, timeout: 10)     //invite found peers automatically
+        if(peerID.displayName.contains("Party") || peerID.displayName.contains("party")) {      //Found server
+            deviceList.append(peerID.displayName)
+            self.delegate?.foundDevicesChanged(manager: self, peerDevices: deviceList)      //protocol method to update list of discovered devices
+        }
+        
+        browser.invitePeer(peerID, to: self.session, withContext: nil, timeout: 20)     //invite found peers automatically
         deviceList.append(peerID.displayName)
         self.delegate?.foundDevicesChanged(manager: self, peerDevices: deviceList)      //protocol method to update list of discovered devices
     }
@@ -93,7 +99,7 @@ extension BonjourService : MCNearbyServiceBrowserDelegate {
     
 }
 
-extension BonjourService : MCSessionDelegate {
+extension BonjourService : MCSessionDelegate {      //session delegate
     
     func session(_ session: MCSession, peer peerID: MCPeerID, didChange state: MCSessionState) {
         NSLog("%@", "peer \(peerID) didChangeState: \(state)")
